@@ -24,7 +24,7 @@ class User(models.Model):
     password = models.CharField(max_length=120)
     role = models.CharField(max_length=10)
     age = models.IntegerField()
-    location_id = models.ForeignKey(Location, on_delete=models.CASCADE)
+    location_id = models.ManyToManyField(Location)
     class Meta:
         verbose_name = "Пользователь"
         verbose_name_plural = "Пользователи"
