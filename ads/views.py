@@ -260,7 +260,9 @@ class UserListView(ListView):
         page_obj = paginator.get_page(page_number)
         for i in page_obj:
             a = Ad.objects.all().filter(author_id__id = i.id).count()
-            print(a)
+            locations = []
+            for location in i.location_id.all():
+                locations.append(location.name)
             data.append({
                 "id":i.id,
                 "first_name":i.first_name,
@@ -269,7 +271,7 @@ class UserListView(ListView):
                 "password":i.password,
                 "role":i.role,
                 "age":i.age,
-                "location_id":i.location_id.id if i.location_id else None,
+                "locations":locations,
                 "total_ads":a
             })
         res = {
@@ -285,6 +287,9 @@ class UserDetailView(DetailView):
         super().get(request,*args,**kwargs)
         data = []
         obj = self.get_object()
+        locations = []
+        for location in obj.location_id.all():
+            locations.append(location.name)
         data.append({
                 "id":obj.id,
                 "first_name":obj.first_name,
@@ -293,7 +298,7 @@ class UserDetailView(DetailView):
                 "password":obj.password,
                 "role":obj.role,
                 "age":obj.age,
-                "location_id":obj.location_id.id if obj.location_id else None,
+                "locations":locations
             })
         return JsonResponse(data, safe=False, json_dumps_params={'ensure_ascii': False})
 
@@ -305,18 +310,28 @@ class UserCreateView(CreateView):
     def post(self, request, *args, **kwargs):
         super().post(request, *args, **kwargs)
         data = json.loads(request.read())
-        print(data)
         user = User()
+        user.id = data["id"]
         user.first_name = data["first_name"]
         user.last_name = data["last_name"]
         user.username = data["username"]
         user.password = data["password"]
         user.role = data["role"]
         user.age = data["age"]
-        user.location_id = Location.objects.get(pk=data["location_id"])
-
+        locations = []
+        for location in data["locations"]:
+            locations.append(Location.objects.get(name=location))
         user.save()
-        data.append({
+        user.location_id.set(locations)
+        user.save()
+
+        locs = []
+        for location in user.location_id.all():
+            locs.append(location.name)
+
+        res = []
+
+        res.append({
                 "id":user.id,
                 "first_name":user.first_name,
                 "last_name":user.last_name,
@@ -324,10 +339,58 @@ class UserCreateView(CreateView):
                 "password":user.password,
                 "role":user.role,
                 "age":user.age,
-                "location_id":user.location_id.id if user.location_id else None,
+                "locations":locs,
             })
         return JsonResponse(data, safe=False, json_dumps_params={'ensure_ascii': False})
 
+
+@method_decorator(csrf_exempt, name="dispatch")
+class UserUpdateView(UpdateView):
+    model = User
+    fields = ["id","first_name","last_name","username","password","role","age","location_id"]
+
+    def patch(self, request, *args, **kwargs):
+        super().post(request, *args, **kwargs)
+        data = json.loads(request.read())
+        user = User()
+        user.id = data["id"]
+        if data["first_name"]:
+            user.first_name = data["first_name"] 
+        if data["last_name"]:
+            user.last_name = data["last_name"]
+        if data["username"]:
+            user.username = data["username"]
+        if data["password"]:
+            user.password = data["password"]
+        if data["role"]:
+            user.role = data["role"]
+        if data["age"]:
+            user.age = data["age"]
+        if data["locations"]:
+            locations = []
+            for location in data["locations"]:
+                locations.append(Location.objects.get(name=location))
+            user.save()
+            user.location_id.set(locations)
+        user.save()
+
+        locs = []
+        for location in user.location_id.all():
+            locs.append(location.name)
+
+        res = []
+
+        res.append({
+                "id":user.id,
+                "first_name":user.first_name,
+                "last_name":user.last_name,
+                "username":user.username,
+                "password":user.password,
+                "role":user.role,
+                "age":user.age,
+                "locations":locs,
+            })
+        return JsonResponse(data, safe=False, json_dumps_params={'ensure_ascii': False})
 
 @method_decorator(csrf_exempt, name="dispatch")
 class UserDeleteView(DeleteView):
